@@ -918,42 +918,48 @@ fi
         err "规则加载失败，请检查配置。"
     fi
 }
-# ============== 刷新域名解析结果 ==============
+# ============== 刷新域名解析结果（comment-based） ==============
 do_refresh() {
     load_rules
     local changed=0
 
-    [[ -f "$LOG_FILE" ]] || return
+    nft list table ip "${TABLE_NAME}" | while read -r line; do
+        # 只处理带 domain comment 的 DNAT 规则
+        [[ "$line" =~ comment\ \"domain=([^\"]+)\" ]] || continue
+        domain="${BASH_REMATCH[1]}"
 
-    while read -r line; do
-        local re
-re='新增转发: ([0-9]+) -> ([^ ]+) \(解析为 ([0-9.]+)\):([0-9]+)'
+        # 提取 DNAT 目标 IP 和端口
+        [[ "$line" =~ dnat\ to\ ([0-9.]+):([0-9]+) ]] || continue
+        old_ip="${BASH_REMATCH[1]}"
+        dport="${BASH_REMATCH[2]}"
 
-[[ "$line" =~ $re ]] || continue
+        # 提取本机监听端口
+        [[ "$line" =~ dport\ ([0-9]+) ]] || continue
+        lport="${BASH_REMATCH[1]}"
 
-        local lport="${BASH_REMATCH[1]}"
-        local domain="${BASH_REMATCH[2]}"
-        local old_ip="${BASH_REMATCH[3]}"
-        local dport="${BASH_REMATCH[4]}"
-
-        local new_ip
-        new_ip=$(resolve_domain_ipv4 "$domain") || continue
+        # 重新解析域名
+        new_ip="$(resolve_domain_ipv4 "$domain")" || continue
         [[ "$new_ip" == "$old_ip" ]] && continue
 
+        # 更新 RULES
         for i in "${!RULES[@]}"; do
-            IFS='|' read -r lp dip dp <<<"${RULES[$i]}"
-            if [[ "$lp" == "$lport" && "$dip" == "$old_ip" && "$dp" == "$dport" ]]; then
-                RULES[$i]="${lp}|${new_ip}|${dp}"
+            IFS='|' read -r r_lport r_ip r_dport r_domain <<< "${RULES[$i]}"
+            if [[ "$r_lport" == "$lport" && \
+                  "$r_ip" == "$old_ip" && \
+                  "$r_dport" == "$dport" && \
+                  "$r_domain" == "$domain" ]]; then
+                RULES[$i]="${lport}|${new_ip}|${dport}|${domain}"
                 log_action "刷新转发: ${domain} IP 变更 ${old_ip} -> ${new_ip}"
                 changed=1
             fi
         done
-    done < "$LOG_FILE"
+    done
 
     if (( changed )); then
         write_conf_file && reload_rules
     fi
 }
+
 # ====================================================
 # 功能 4：删除端口转发
 # ====================================================
