@@ -1097,9 +1097,11 @@ main_menu() {
         echo "  5) 一键清空所有转发"
         echo "  6) 诊断/自检"
         echo "  7) 查看操作日志"
-        echo "  8) 退出"
+        echo "  8) 安装 systemd 定时刷新"
+        echo "  9) 退出"
+
         echo "========================================"
-        read -rp "请选择操作 [1-7]: " choice
+        read -rp "请选择操作 [1-9]: " choice
 
         case "$choice" in
             1) do_install ;;
@@ -1108,13 +1110,14 @@ main_menu() {
             4) do_delete ;;
             5) do_clear_all ;;
             6) do_diagnose ;;
-          7) do_view_log ;;
-          8)
+            7) do_view_log ;;
+            8) do_install_timer ;;
+            9)
           info "再见！"
     exit 0
     ;;
             *)
-                err "无效选择，请输入 1-8。"
+                err "无效选择，请输入 1-9。"
                 ;;
         esac
     done
@@ -1132,6 +1135,63 @@ do_view_log() {
     echo "========================================"
     read -rp "按回车键返回菜单..." _
 }
+# ============== 安装 systemd 定时刷新 ==============
+do_install_timer() {
+    local interval
+
+    echo "设置域名刷新间隔（分钟，1–10，默认 5）："
+    read -r interval
+    interval="${interval:-5}"
+
+    if ! [[ "$interval" =~ ^[1-9]$|^10$ ]]; then
+        err "无效的时间间隔：$interval"
+        return 1
+    fi
+
+    local service_file="/etc/systemd/system/nft-port-forward-refresh.service"
+    local timer_file="/etc/systemd/system/nft-port-forward-refresh.timer"
+
+    cat > "$service_file" <<EOF
+[Unit]
+Description=Refresh nftables port-forward domain IPs
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=${SCRIPT_PATH} --refresh
+ExecStartPre=/usr/bin/flock -n /run/nft-port-forward-refresh.lock -c true
+EOF
+
+    cat > "$timer_file" <<EOF
+[Unit]
+Description=Periodic refresh of nftables port-forward domains
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=${interval}min
+AccuracySec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
+    systemctl daemon-reload
+
+    echo "是否立即启用并启动定时刷新？[Y/n]"
+    read -r yn
+    yn="${yn:-Y}"
+
+    if [[ "$yn" =~ ^[Yy]$ ]]; then
+        systemctl enable --now nft-port-forward-refresh.timer
+        log_action "已启用 systemd 定时刷新（每 ${interval} 分钟）"
+        echo "定时刷新已启用。"
+    else
+        echo "定时器已创建，但未启用。"
+    fi
+}
+
 # ============== 非交互刷新入口 ==============
 if [[ "$1" == "--refresh" ]]; then
     check_root
