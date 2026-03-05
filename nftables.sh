@@ -923,25 +923,20 @@ do_refresh() {
     load_rules
     local changed=0
 
-    nft list table ip "${TABLE_NAME}" | while read -r line; do
-        # 只处理带 domain comment 的 DNAT 规则
+    while read -r line; do
         [[ "$line" =~ comment\ \"domain=([^\"]+)\" ]] || continue
         domain="${BASH_REMATCH[1]}"
 
-        # 提取 DNAT 目标 IP 和端口
         [[ "$line" =~ dnat\ to\ ([0-9.]+):([0-9]+) ]] || continue
         old_ip="${BASH_REMATCH[1]}"
         dport="${BASH_REMATCH[2]}"
 
-        # 提取本机监听端口
         [[ "$line" =~ dport\ ([0-9]+) ]] || continue
         lport="${BASH_REMATCH[1]}"
 
-        # 重新解析域名
         new_ip="$(resolve_domain_ipv4 "$domain")" || continue
         [[ "$new_ip" == "$old_ip" ]] && continue
 
-        # 更新 RULES
         for i in "${!RULES[@]}"; do
             IFS='|' read -r r_lport r_ip r_dport r_domain <<< "${RULES[$i]}"
             if [[ "$r_lport" == "$lport" && \
@@ -953,12 +948,13 @@ do_refresh() {
                 changed=1
             fi
         done
-    done
+    done < <(nft list table ip "${TABLE_NAME}")
 
     if (( changed )); then
         write_conf_file && reload_rules
     fi
 }
+
 
 # ====================================================
 # 功能 4：删除端口转发
