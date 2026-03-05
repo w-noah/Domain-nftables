@@ -900,7 +900,7 @@ done
 
     # 备份并写入
     backup_conf
-    RULES+=("${lport}|${resolved_ip}|${dport}")
+    RULES+=("${lport}|${resolved_ip}|${dport}|${domain}")
     if ! write_conf_file; then
         return
     fi
