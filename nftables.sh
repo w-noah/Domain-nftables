@@ -1098,8 +1098,11 @@ main_menu() {
         echo "  6) 诊断/自检"
         echo "  7) 查看操作日志"
         echo "  8) 安装 systemd 定时刷新"
-        echo "  9) 退出"
-
+        echo "  9) 查看定时器状态"
+        echo " 10) 停用定时刷新"
+        echo " 11) 手动执行 refresh"
+        echo " 12) 退出"
+        
         echo "========================================"
         read -rp "请选择操作 [1-9]: " choice
 
@@ -1112,7 +1115,10 @@ main_menu() {
             6) do_diagnose ;;
             7) do_view_log ;;
             8) do_install_timer ;;
-            9)
+            9) do_timer_status ;;
+           10) do_disable_timer ;;
+           11) do_manual_refresh ;;
+           12)
           info "再见！"
     exit 0
     ;;
@@ -1190,6 +1196,31 @@ EOF
     else
         echo "定时器已创建，但未启用。"
     fi
+}
+# ============== 查看定时刷新状态 ==============
+do_timer_status() {
+    echo "=== systemd 定时刷新状态 ==="
+    systemctl list-timers --all | grep nft-port-forward || echo "未发现定时器"
+
+    echo ""
+    echo "=== 最近执行日志（最近 20 行）==="
+    journalctl -u nft-port-forward-refresh.service -n 20 --no-pager || true
+}
+# ============== 停用 systemd 定时刷新 ==============
+do_disable_timer() {
+    if systemctl is-enabled nft-port-forward-refresh.timer &>/dev/null; then
+        systemctl disable --now nft-port-forward-refresh.timer
+        log_action "已停用 systemd 定时刷新"
+        echo "定时刷新已停用。"
+    else
+        echo "定时刷新未启用，无需操作。"
+    fi
+}
+# ============== 手动执行域名刷新 ==============
+do_manual_refresh() {
+    echo "正在手动执行域名刷新..."
+    do_refresh
+    echo "刷新完成。"
 }
 
 # ============== 非交互刷新入口 ==============
