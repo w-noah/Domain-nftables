@@ -915,7 +915,10 @@ do_refresh() {
     [[ -f "$LOG_FILE" ]] || return
 
     while read -r line; do
-        [[ "$line" =~ 新增转发:\ ([0-9]+)\ ->\ ([^ ]+)\ \(解析为\ ([0-9.]+)\):([0-9]+) ]] || continue
+        local re
+re='新增转发: ([0-9]+) -> ([^ ]+) \(解析为 ([0-9.]+)\):([0-9]+)'
+
+[[ "$line" =~ $re ]] || continue
 
         local lport="${BASH_REMATCH[1]}"
         local domain="${BASH_REMATCH[2]}"
