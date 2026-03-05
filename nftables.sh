@@ -3,7 +3,7 @@
 # nftables 端口转发管理工具 v1.2
 # 交互式管理 DNAT 端口转发规则（可转域名）
 #
-
+SCRIPT_PATH="$(readlink -f "$0")"
 # ============== 常量定义 ==============
 CONF_DIR="/etc/nftables.d"
 CONF_FILE="${CONF_DIR}/port-forward.conf"
@@ -1165,7 +1165,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=${SCRIPT_PATH} --refresh
+ExecStart=/bin/bash "${SCRIPT_PATH}" --refresh
 ExecStartPre=/usr/bin/flock -n /run/nft-port-forward-refresh.lock -c true
 EOF
 
