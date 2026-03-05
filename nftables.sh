@@ -149,7 +149,7 @@ dest_still_used() {
     local check_ip="$1" check_dport="$2" exclude_lport="$3"
     local rule lport dip dport
     for rule in "${RULES[@]}"; do
-        IFS='|' read -r lport dip dport <<< "$rule"
+        IFS='|' read -r lport dip dport domain <<< "$rule"
         # 跳过正在删除的那条
         [[ "$lport" == "$exclude_lport" ]] && continue
         # 如果其他规则也指向同一 dest_ip:dport，返回 true
@@ -402,7 +402,7 @@ done
 EOF
 
     for rule in "${RULES[@]}"; do
-        IFS='|' read -r lport dip dport <<< "$rule"
+        IFS='|' read -r lport dip dport domain <<< "$rule"
         cat >> "${tmp_file}" <<EOF
 
         # 回源: 发往 ${dip}:${dport} 的已 DNAT 流量, SNAT 为本机 IP
@@ -662,7 +662,7 @@ do_diagnose() {
         if [[ "$test_conn" =~ ^[Yy]$ ]]; then
             local rule lport dip dport
             for rule in "${RULES[@]}"; do
-                IFS='|' read -r lport dip dport <<< "$rule"
+                IFS='|' read -r lport dip dport domain <<< "$rule"
                 printf "  测试 %s:%s (TCP) ... " "$dip" "$dport"
                 if timeout 3 bash -c ">/dev/tcp/${dip}/${dport}" 2>/dev/null; then
                     printf "\033[32m通\033[0m\n"
@@ -801,7 +801,7 @@ do_list() {
     local idx=1
     local rule lport dip dport
     for rule in "${RULES[@]}"; do
-        IFS='|' read -r lport dip dport <<< "$rule"
+        IFS='|' read -r lport dip dport domain <<< "$rule"
         printf "%-6s %-10s %-10s -> %-22s\n" \
             "$idx" "tcp+udp" "$lport" "${dip}:${dport}"
         ((idx++))
@@ -978,7 +978,7 @@ do_delete() {
     local idx=1
     local rule lport dip dport
     for rule in "${RULES[@]}"; do
-        IFS='|' read -r lport dip dport <<< "$rule"
+        IFS='|' read -r lport dip dport domain <<< "$rule"
         printf "%-6s %-10s %-10s -> %-20s\n" \
             "$idx" "tcp+udp" "$lport" "${dip}:${dport}"
         ((idx++))
@@ -1000,7 +1000,7 @@ do_delete() {
     fi
 
     local target="${RULES[$((choice-1))]}"
-    IFS='|' read -r lport dip dport <<< "$target"
+    IFS='|' read -r lport dip dport domain <<< "$target"
 
     echo "即将删除转发规则:"
     echo "  本机端口 ${lport} (tcp+udp) → ${dip}:${dport}"
@@ -1058,7 +1058,7 @@ do_clear_all() {
     # 先清理所有防火墙规则（清空场景用 force，无需检查共享）
     local rule lport dip dport
     for rule in "${RULES[@]}"; do
-        IFS='|' read -r lport dip dport <<< "$rule"
+        IFS='|' read -r lport dip dport domain <<< "$rule"
         firewall_close_port "$lport" "$dip" "$dport" "force"
     done
 
