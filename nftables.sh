@@ -371,16 +371,27 @@ table ip ${TABLE_NAME} {
         type nat hook prerouting priority -100; policy accept;
 EOF
 
-    local rule lport dip dport
-    for rule in "${RULES[@]}"; do
-        IFS='|' read -r lport dip dport <<< "$rule"
+local rule lport dip dport domain
+for rule in "${RULES[@]}"; do
+    IFS='|' read -r lport dip dport domain <<< "$rule"
+
+    if [[ -n "$domain" ]]; then
+        cat >> "${tmp_file}" <<EOF
+
+        # 转发: 本机:${lport} -> ${domain} (${dip}:${dport})
+        tcp dport ${lport} dnat to ${dip}:${dport} comment "domain=${domain}"
+        udp dport ${lport} dnat to ${dip}:${dport} comment "domain=${domain}"
+EOF
+    else
         cat >> "${tmp_file}" <<EOF
 
         # 转发: 本机:${lport} -> ${dip}:${dport}
         tcp dport ${lport} dnat to ${dip}:${dport}
         udp dport ${lport} dnat to ${dip}:${dport}
 EOF
-    done
+    fi
+done
+
 
     cat >> "${tmp_file}" <<EOF
     }
