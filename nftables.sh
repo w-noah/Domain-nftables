@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-#
+echo "DEBUG: argv = $@" >&2
+
 # nftables 端口转发管理工具 v1.2
 # 交互式管理 DNAT 端口转发规则（可转域名）
 #
