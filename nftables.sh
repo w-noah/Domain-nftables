@@ -335,15 +335,27 @@ declare -a RULES=()
 
 load_rules() {
     RULES=()
+
     if [[ ! -f "${CONF_FILE}" ]]; then
         return
     fi
+
     while IFS= read -r line; do
         # 跳过注释行
         [[ "$line" =~ ^[[:space:]]*# ]] && continue
+
         # 只解析 tcp 的 dnat 行（每对 tcp/udp 只记录一次）
         if [[ "$line" =~ tcp\ dport\ ([0-9]+)\ dnat\ to\ ([0-9.]+):([0-9]+) ]]; then
-            RULES+=("${BASH_REMATCH[1]}|${BASH_REMATCH[2]}|${BASH_REMATCH[3]}")
+            lport="${BASH_REMATCH[1]}"
+            dip="${BASH_REMATCH[2]}"
+            dport="${BASH_REMATCH[3]}"
+
+            domain=""
+            if [[ "$line" =~ comment\ \"domain=([^\"]+)\" ]]; then
+                domain="${BASH_REMATCH[1]}"
+            fi
+
+            RULES+=("${lport}|${dip}|${dport}|${domain}")
         fi
     done < "${CONF_FILE}"
 }
