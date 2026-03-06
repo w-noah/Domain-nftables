@@ -951,6 +951,7 @@ do_refresh() {
     done < <(nft list table ip "${TABLE_NAME}")
 
     if (( changed )); then
+    echo "DEBUG: changed=$changed" >&2
         write_conf_file && reload_rules
     fi
 }
