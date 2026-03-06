@@ -922,7 +922,10 @@ fi
 do_refresh() {
     load_rules
     local changed=0
-
+echo "DEBUG: RULES content:"
+for r in "${RULES[@]}"; do
+    echo "  [$r]"
+done
     while read -r line; do
         [[ "$line" =~ comment\ \"domain=([^\"]+)\" ]] || continue
         domain="${BASH_REMATCH[1]}"
